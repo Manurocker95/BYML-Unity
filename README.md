@@ -1,4 +1,4 @@
-# BYML-Unity
+# CRG1-BYML-Unity
 
 * Parser for Unity Engine to Parse CRG1 files from NoClip.Website as BYML formatted files.  
 * Tested with Pokémon Snap CRG1 files that obtain:
