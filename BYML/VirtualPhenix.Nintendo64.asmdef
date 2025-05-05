@@ -1,0 +1,14 @@
+{
+    "name": "VirtualPhenix.Nintendo64",
+    "rootNamespace": "VirtualPhenix.Nintendo64",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
