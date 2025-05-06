@@ -554,6 +554,11 @@ namespace VirtualPhenix.Nintendo64
             return obj;
         }
 
+        public static object Parse(byte[] bufferBytes, FileType fileType = FileType.BYML, ParseOptions opt = null, bool _mapToObject = true)
+        {
+            return Parse<NodeDict>(new VP_ArrayBufferSlice(bufferBytes), fileType, opt);
+        }
+
         public static object Parse<T>(byte[] bufferBytes, FileType fileType = FileType.BYML, ParseOptions opt = null, bool _mapToObject = true) where T: new()
         {
             return Parse<T>(new VP_ArrayBufferSlice(bufferBytes), fileType, opt);

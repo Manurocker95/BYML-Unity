@@ -1,5 +1,13 @@
 namespace VirtualPhenix.Nintendo64
 {
+    public class VP_Int64Array : VP_Int64Array<VP_ArrayBuffer>
+    {
+        public VP_Int64Array(VP_ArrayBuffer buffer, long byteOffset = 0, long? length = null) : base(buffer, byteOffset, length)
+        {
+
+        }
+    }
+
     public class VP_Int64Array<T> : VP_ArrayBufferView<T> where T : IArrayBufferLike
     {
         public const int BYTES_PER_ELEMENT = 8;

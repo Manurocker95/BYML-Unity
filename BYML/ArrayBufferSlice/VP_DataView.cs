@@ -2,6 +2,14 @@ using System.Linq;
 
 namespace VirtualPhenix.Nintendo64
 {
+    public class VP_DataView : VP_DataView<VP_ArrayBuffer>
+    {
+        public VP_DataView(VP_ArrayBuffer buffer, long byteOffset = 0, long? byteLength = null) : base(buffer, byteOffset, byteLength)
+        {
+        }
+    }
+
+
     public class VP_DataView<T> where T : IArrayBufferLike
     {
         public T BufferSource { get; private set; }

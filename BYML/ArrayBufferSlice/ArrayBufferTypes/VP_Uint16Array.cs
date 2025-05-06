@@ -1,5 +1,12 @@
 namespace VirtualPhenix.Nintendo64
 {
+    public class VP_Uint16Array : VP_Uint16Array<VP_ArrayBuffer>
+    {
+        public VP_Uint16Array(VP_ArrayBuffer buffer, long byteOffset = 0, long? length = null) : base(buffer, byteOffset, length)
+        {
+
+        }
+    }
     public class VP_Uint16Array<T> : VP_ArrayBufferView<T> where T : IArrayBufferLike
     {
         public const int BYTES_PER_ELEMENT = 2;

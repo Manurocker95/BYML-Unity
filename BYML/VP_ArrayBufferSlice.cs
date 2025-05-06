@@ -170,6 +170,22 @@ namespace VirtualPhenix.Nintendo64
             return result;
         }
 
+        public virtual VP_DataView CreateDefaultDataView(long offs = 0, long? length = null)
+        {
+            if (Buffer == null)
+                throw new System.ObjectDisposedException(nameof(VP_ArrayBufferSlice));
+
+            if (offs == 0 && length == null)
+            {
+                return new VP_DataView(new VP_ArrayBuffer(Buffer), ByteOffset, ByteLength);
+            }
+            else
+            {
+                var sub = Subarray(offs, length);
+                return sub.CreateDefaultDataView();
+            }
+        }
+
         public virtual VP_DataView<IArrayBufferLike> CreateDataView(long offs = 0, long? length = null)
         {
             if (Buffer == null)
