@@ -1,3 +1,5 @@
+using System;
+
 namespace VirtualPhenix.Nintendo64
 {
     public class VP_ArrayBuffer : IArrayBufferLike
@@ -76,5 +78,25 @@ namespace VirtualPhenix.Nintendo64
             return new VP_ArrayBuffer(newBuffer);
         }
 
+        public virtual IArrayBufferLike Slice(long? start = null, long? end = null)
+        {
+            start ??= 0;
+
+            end ??= Buffer.Length;
+
+            if (start < 0 || start >= Buffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(start), "Start out of range!.");
+
+            if (end < 0 || end > Buffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(end), "'End out of range!'.");
+
+            if (start > end)
+                throw new ArgumentException("'start' can't be higher than 'end'.");
+
+            byte[] sliced = new byte[end.Value - start.Value];
+            Array.Copy(Buffer, start.Value, sliced, 0, sliced.Length);
+
+            return new VP_ArrayBuffer(sliced); 
+        }
     }
 }

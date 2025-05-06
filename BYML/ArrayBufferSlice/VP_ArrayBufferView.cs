@@ -368,7 +368,7 @@ namespace VirtualPhenix.Nintendo64
             }
         }
 
-        public virtual VP_ArrayBufferView<T> Slice(long? start = null, long? end = null)
+        public virtual IArrayBufferLike Slice(long? start = null, long? end = null)
         {
             long length = Length;
 

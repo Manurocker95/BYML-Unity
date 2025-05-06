@@ -13,5 +13,6 @@ namespace VirtualPhenix.Nintendo64
         long ByteLength { get; }
         long LongLength { get; }
         object this[long index] { get; set; }
+        public IArrayBufferLike Slice(long? start = null, long? end = null);
     }
 }

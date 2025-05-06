@@ -27,6 +27,11 @@ namespace VirtualPhenix.Nintendo64
             ByteLength = actualLength;
         }
 
+        public virtual IArrayBufferLike Slice(long? start = null, long? end = null)
+        {
+            return Buffer.Slice(start, end);
+        }
+
         public static VP_ArrayBufferSlice FromView<T>(VP_ArrayBufferView<T> view) where T : IArrayBufferLike
         {
             return new VP_ArrayBufferSlice(view.BufferSource, view.ByteOffset, view.ByteLength);
@@ -123,6 +128,16 @@ namespace VirtualPhenix.Nintendo64
         }
 
         public virtual VP_ArrayBuffer CopyToBuffer(long begin = 0, long? byteLength = null)
+        {
+            var absBegin = ByteOffset + begin;
+
+            if (!byteLength.HasValue)
+                byteLength = ByteLength - begin;
+
+            return (VP_ArrayBuffer)Buffer.Slice(absBegin, absBegin + byteLength) as VP_ArrayBuffer;
+        }
+
+        public virtual VP_ArrayBuffer CopyToBufferOld(long begin = 0, long? byteLength = null)
         {
             if (Buffer == null)
                 throw new System.ObjectDisposedException(nameof(VP_ArrayBufferSlice));

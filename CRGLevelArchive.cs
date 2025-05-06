@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using VirtualPhenix.Nintendo64;
 
+[System.Serializable]
 public class CRGLevelArchive 
 {
     public uint Name { get; set; }
@@ -20,11 +21,6 @@ public class CRGLevelArchive
     public uint Objects { get; set; }
     public uint Collision { get; set; }
 
-    public override string ToString()
-    {
-        return $"LevelArchive(Name: {Name}, DataSize: {Data?.ByteLength ?? 0}, CodeSize: {Code?.ByteLength ?? 0}, PhotoSize: {Photo?.ByteLength ?? 0})";
-    }
-
     public CRGLevelArchive()
     {
 
@@ -37,7 +33,12 @@ public class CRGLevelArchive
 
     public void FromNodeDict(VP_BYML.NodeDict dict)
     {
-        if (dict == null) return;
+        if (dict == null || dict.Count == 0) return;
+
+        foreach (var kvp in dict)
+        {
+            Debug.Log(kvp.Key);
+        }
 
         Name = (uint)dict["Name"].Data;
         Data = (VP_ArrayBufferSlice)dict["Data"].Data;
@@ -51,4 +52,22 @@ public class CRGLevelArchive
         Objects = (uint)dict["Objects"].Data;
         Collision = (uint)dict["Collision"].Data;
     }
+
+    public void Log()
+    {
+        Debug.Log("========== LEVEL ARCHIVE ==========");
+        Debug.Log($"Name: 0x{this.Name:X8} ({this.Name})");
+        Debug.Log($"StartAddress: 0x{this.StartAddress:X8} ({this.StartAddress})");
+        Debug.Log($"CodeStartAddress: 0x{this.CodeStartAddress:X8} ({this.CodeStartAddress})");
+        Debug.Log($"PhotoStartAddress: 0x{this.PhotoStartAddress:X8} ({this.PhotoStartAddress})");
+        Debug.Log($"Header: 0x{this.Header:X8} ({this.Header})");
+        Debug.Log($"Objects: 0x{this.Objects:X8} ({this.Objects})");
+        Debug.Log($"Collision: 0x{this.Collision:X8} ({this.Collision})");
+        Debug.Log($"Data: {this.Data}");
+        Debug.Log($"Code: {this.Code}");
+        Debug.Log($"Photo: {this.Photo}");
+        Debug.Log($"ParticleData: {this.ParticleData}");
+        Debug.Log("===================================");
+    }
+
 }

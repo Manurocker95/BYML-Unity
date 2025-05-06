@@ -562,17 +562,23 @@ namespace VirtualPhenix.Nintendo64
             {
                 if (byteLength >= length)
                     break;
-                if (nulTerminated && buf.Buffer[byteLength] == 0)
-                    break;
 
+                if (nulTerminated)
+                {
+                    var byt = buffer.Buffer.Buffer[offs + byteLength];
+                   
+                    if (byt == 0)
+                    {
+                        break;
+                    }
+                }
+                
                 byteLength++;
             }
 
-            // Si no se encontró nada, devolver una cadena vacía
             if (byteLength == 0)
                 return string.Empty;
 
-            // Decodificar la cadena de acuerdo con la codificación proporcionada
             if (encoding != null)
             {
                 return DecodeString(buffer, offs, byteLength, encoding);
@@ -588,10 +594,9 @@ namespace VirtualPhenix.Nintendo64
             var arrayBuffer = buffer.CopyToBuffer(offs, byteLength);
             byte[] byteArray = arrayBuffer.Buffer;
 
-            // Aquí, usa System.Text.Encoding para la decodificación según el tipo de codificación
             var str = Encoding.UTF8.GetString(byteArray);
 
-          //  UnityEngine.Debug.Log("Parsed in decode string " + str);
+            //UnityEngine.Debug.Log("Parsed in decode string " + str + " - blength:" + byteLength);
 
             return str;
         }
