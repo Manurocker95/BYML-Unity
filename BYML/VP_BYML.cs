@@ -1282,11 +1282,42 @@ namespace VirtualPhenix.Nintendo64
                 stream.WriteString(v[i] + '\0');
         }
 
-        public static VP_ArrayBuffer Write(object o, FileType fileType = FileType.CRG1, string magic = null)
+        public static Dictionary<string, object> ParseObjectToDictionary(object obj)
+        {
+            var result = new Dictionary<string, object>();
+            Type type = obj.GetType();
+
+            // Leer campos públicos
+            foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                result[field.Name] = field.GetValue(obj);
+            }
+
+            // Leer propiedades públicas con getter
+            foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (prop.CanRead)
+                {
+                    result[prop.Name] = prop.GetValue(obj);
+                }
+            }
+
+            return result;
+        }
+
+        public static VP_ArrayBuffer Write(object o, FileType fileType = FileType.CRG1, string magic = null, bool _automaticParse = true)
         {
             object v = o;
 
-            if (o is Dictionary<string, object>)
+            var isDict = o is Dictionary<string, object>;
+
+            if (_automaticParse && !isDict && !(o is NodeDict))
+            {
+                o = ParseObjectToDictionary(o);
+                isDict = true;
+            }
+
+            if (isDict)
             {
                 Dictionary<string, object> parsed = (Dictionary<string, object>)o;
                 NodeDict dict = new NodeDict();
@@ -1308,6 +1339,7 @@ namespace VirtualPhenix.Nintendo64
                     v = dict;
                 }
             }
+            
 
             var stream = new WritableStream();
 
