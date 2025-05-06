@@ -2,7 +2,12 @@ namespace VirtualPhenix.Nintendo64
 {
     public class VP_Float32Array : VP_Float32Array<VP_ArrayBuffer>
     {
-        public VP_Float32Array(VP_ArrayBuffer buffer, long byteOffset = 0, long? length = null) : base(buffer, byteOffset, length)
+        public VP_Float32Array() : base(new VP_ArrayBuffer(), 0)
+        {
+
+        }
+
+		public VP_Float32Array(VP_ArrayBuffer buffer, long byteOffset = 0, long? length = null) : base(buffer, byteOffset, length)
         {
         }
     }

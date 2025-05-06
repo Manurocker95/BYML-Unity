@@ -6,7 +6,11 @@ namespace VirtualPhenix.Nintendo64
 {
     public class VP_Uint8Array : VP_Uint8Array<VP_ArrayBuffer>
     {
-        public VP_Uint8Array(VP_ArrayBuffer buffer, long byteOffset = 0, long? length = null) : base(buffer, byteOffset, length)
+		public VP_Uint8Array() : base(new VP_ArrayBuffer(), 0)
+		{
+
+		}
+		public VP_Uint8Array(VP_ArrayBuffer buffer, long byteOffset = 0, long? length = null) : base(buffer, byteOffset, length)
         {
 
         }
