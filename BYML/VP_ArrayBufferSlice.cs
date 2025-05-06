@@ -6,11 +6,22 @@ namespace VirtualPhenix.Nintendo64
 {
     public class VP_ArrayBufferSlice : IArrayBufferLike
     {
-        public virtual IArrayBufferLike Buffer { get; }
-        public virtual long ByteOffset { get; }
-        public virtual long ByteLength { get; }
+        public virtual IArrayBufferLike Buffer { get; protected set; }
+        public virtual long ByteOffset { get; protected set; }
+        public virtual long ByteLength { get; protected set; }
+
+        public VP_ArrayBufferSlice(byte[] bufferBytes, long byteOffset = 0, long? byteLength = null)
+        {
+            VP_ArrayBuffer buffer = new VP_ArrayBuffer(bufferBytes);
+            InitBuffer(buffer, byteOffset, byteLength);
+        }
 
         public VP_ArrayBufferSlice(IArrayBufferLike buffer, long byteOffset = 0, long? byteLength = null)
+        {
+            InitBuffer(buffer, byteOffset, byteLength);
+        }
+
+        public virtual void InitBuffer(IArrayBufferLike buffer, long byteOffset = 0, long? byteLength = null)
         {
             long bufferLength = buffer.LongLength;
 

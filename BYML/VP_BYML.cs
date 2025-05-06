@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text;
 
 namespace VirtualPhenix.Nintendo64
@@ -513,7 +514,52 @@ namespace VirtualPhenix.Nintendo64
             }
         }
 
-        public static object Parse(VP_ArrayBufferSlice buffer, FileType fileType = FileType.BYML, ParseOptions opt = null)
+        public static T MapToObject<T>(NodeDict data) where T : new() 
+        {
+            T obj = new T();
+            Type type = typeof(T);
+
+            foreach (var kvp in data)
+            {
+                var field = type.GetField(kvp.Key, BindingFlags.Public | BindingFlags.Instance);
+                if (field != null && kvp.Value != null)
+                {
+                    try
+                    {
+                        object value = Convert.ChangeType(kvp.Value.Data, field.FieldType);
+                        field.SetValue(obj, value);
+                    }
+                    catch
+                    {
+                        // Opcional: manejar errores de conversión
+                    }
+                }
+
+                // Alternativamente, también soporta propiedades públicas
+                var property = type.GetProperty(kvp.Key, BindingFlags.Public | BindingFlags.Instance);
+                if (property != null && property.CanWrite && kvp.Value != null)
+                {
+                    try
+                    {
+                        object value = Convert.ChangeType(kvp.Value.Data, property.PropertyType);
+                        property.SetValue(obj, value);
+                    }
+                    catch
+                    {
+                        // Opcional: manejar errores de conversión
+                    }
+                }
+            }
+
+            return obj;
+        }
+
+        public static object Parse<T>(byte[] bufferBytes, FileType fileType = FileType.BYML, ParseOptions opt = null, bool _mapToObject = true) where T: new()
+        {
+            return Parse<T>(new VP_ArrayBufferSlice(bufferBytes), fileType, opt);
+        }
+
+        public static object Parse<T>(VP_ArrayBufferSlice buffer, FileType fileType = FileType.BYML, ParseOptions opt = null, bool _mapToObject = true) where T : new()
         {
             string magic = ReadString(buffer, 0x00, 0x04, false);
             var magics = FileDescriptions[fileType].Magics;
@@ -544,7 +590,28 @@ namespace VirtualPhenix.Nintendo64
             context.PathTable = pathTableOffs != 0 ? ParsePathTable(context, buffer, pathTableOffs) : null;
 
             var node = ParseComplexNode(context, buffer, rootNodeOffs, null);
-            return node.Data;
+            NodeDict dict = (NodeDict)node.Data;
+
+            object ret = null;
+
+            if (_mapToObject && (typeof(T) != typeof(NodeDict)))
+            {
+                try
+                {
+                    T rr = MapToObject<T>(dict);
+                    ret = rr;
+                }
+                catch
+                {
+                    ret = dict;
+                }
+            }
+            else
+            {
+                ret = dict;
+            }
+
+            return ret;
         }
 
         public static string ReadString(VP_ArrayBufferSlice buffer, long offs, long length = -1, bool nulTerminated = true, string encoding = null)

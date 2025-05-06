@@ -20,7 +20,7 @@ CRGLevelArchive binary data as struct with:
 ```
   byte[] cgr1Data = System.IO.File.ReadAllBytes("C:/10_arc.crg1");
   VP_ArrayBufferSlice arrayBufferSlice = new VP_ArrayBufferSlice(new VP_ArrayBuffer(cgr1Data));
-  object parsedObject = VP_BYML.Parse(arrayBufferSlice, FileType.CRG1);
+  object parsedObject = VP_BYML.Parse<VP_BYML.NodeDict>(arrayBufferSlice, FileType.CRG1);
   VP_BYML.NodeDict parsedDictionary = (VP_BYML.NodeDict)parsedObject;
 
   // Parse here the dictionary to your stuff, for example:
@@ -51,3 +51,18 @@ CRGLevelArchive binary data as struct with:
         Collision = (uint)dict["Collision"].Data;
     }
 ```
+
+* Optionally, you can just send the byte array as parameter and the byml parse class will handle the allocation automatically. 
+```
+  byte[] cgr1Data = System.IO.File.ReadAllBytes("C:/10_arc.crg1");
+  object parsedObject = VP_BYML.Parse<VP_BYML.NodeDict>(cgr1Data, FileType.CRG1);
+```
+
+* In addition, you can auto-parse to desired class (differenyt to VP_BYML.NodeDict) by sending it in the generic parameter. For exaple:
+
+```
+  byte[] cgr1Data = System.IO.File.ReadAllBytes("C:/10_arc.crg1");
+  object parsedLevel = VP_BYML.Parse<CRGLevelArchive>(cgr1Data, FileType.CRG1);
+```
+
+* This tool will try to map all public instances of the keys in the dictionary to the variables in your class. There's a last parameter in "Parse" that skips this and always returns the NodeDict in case you want to handle that by hand.
