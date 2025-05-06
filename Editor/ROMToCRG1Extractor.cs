@@ -37,18 +37,18 @@ namespace VirtualPhenix.PokemonSnapRipper
         {
             return File.ReadAllBytes(path);
         }
-        [MenuItem("Pokemon Snap/Extraer .crg1 desde .z64 ROM")]
+        [MenuItem("Pokemon Snap/Extract .crg1 files from .z64 ROM")]
         public static void ExtractCrg1FromROM()
         {
             string romPath = EditorUtility.OpenFilePanel(
-               "Selecciona la ROM de Pokémon Snap",
+               "Select Pokémon Snap's US ROM (.z64)",
                "",
                ""
            );
             if (string.IsNullOrEmpty(romPath)) return;
             if (!romPath.EndsWith(".z64") && !romPath.EndsWith(".n64") && !romPath.EndsWith(".v64"))
             {
-                EditorUtility.DisplayDialog("Error", "Extensión de archivo no válida. Debe ser .z64, .n64 o .v64.", "OK");
+                EditorUtility.DisplayDialog("Error", "Wrong extension. The rom should be .z64, .n64 o .v64.", "OK");
                 return;
             }
             byte[] romData = FetchDataSync(romPath);
@@ -90,7 +90,7 @@ namespace VirtualPhenix.PokemonSnapRipper
             );
 
             AssetDatabase.Refresh();
-            Debug.Log("✅ Extracción completada. Archivos .crg1 guardados en: " + OutputFolder);
+            Debug.Log("Extraction completed. .crg1 files where saved in: " + OutputFolder);
         }
 
         private static void ExtractMap(byte[] romData, int sceneId, OverlaySpec photo, uint header = 0, uint objectStart = 0, uint collisionStart = 0)
@@ -155,39 +155,7 @@ namespace VirtualPhenix.PokemonSnapRipper
 
         private static byte[] GetSlice(byte[] source, uint start, uint end)
         {
-            if (start >= source.Length || end > source.Length || end <= start)
-            {
-                Debug.LogWarning($"⚠️ Rango inválido en GetSlice: start=0x{start:X}, end=0x{end:X}, length={source.Length}");
-                return Array.Empty<byte>();
-            }
-
-            int length = (int)(end - start);
-            byte[] slice = new byte[length];
-
-            try
-            {
-                Buffer.BlockCopy(source, (int)start, slice, 0, length);
-                return slice;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"❌ Error al copiar bloque: start=0x{start:X}, end=0x{end:X}, ex: {ex.Message}");
-                return Array.Empty<byte>();
-            }
-        }
-
-        private static uint SwapEndian(uint value)
-        {
-            return (value & 0x000000FF) << 24 |
-                   (value & 0x0000FF00) << 8 |
-                   (value & 0x00FF0000) >> 8 |
-                   (value & 0xFF000000) >> 24;
-        }
-
-        private static uint MaskRomAddress(uint address)
-        {
-            // For 16MB ROMs, mask to 24-bit address space
-            return address & 0xFFFFFF;
+            return VP_BYML.GetSliceInByteArray(source, start, end);
         }
     }
 }

@@ -18,7 +18,7 @@ namespace VirtualPhenix.Nintendo64
 
         public VP_ArrayBuffer()
         {
-
+            Buffer = new byte[0];
         }
 
         public VP_ArrayBuffer(byte[] newBuffer)
@@ -62,17 +62,21 @@ namespace VirtualPhenix.Nintendo64
 
         public VP_ArrayBuffer Transfer(long? newByteLength = null)
         {
+            if (Buffer == null)
+            {
+                Buffer = new byte[newByteLength != null ? (int)newByteLength : 0];
+            }
+
+            int originalLength = Buffer.Length;
+
             // Si se proporciona un nuevo tamaño, recortamos o ampliamos el buffer
-            long size = newByteLength ?? Buffer.Length;
+            long size = newByteLength ?? originalLength;
 
             // Creamos un nuevo buffer con el tamaño proporcionado
             byte[] newBuffer = new byte[size];
-
+            
             // Copiamos los datos del buffer original al nuevo
-            System.Array.Copy(Buffer, newBuffer, System.Math.Min(Buffer.Length, size));
-
-            // Desacoplamos el buffer original (en C# esto se logra anulando la referencia)
-            Buffer = null;
+            System.Array.Copy(Buffer, newBuffer, System.Math.Min(originalLength, size));
 
             // Devolvemos el nuevo ArrayBuffer
             return new VP_ArrayBuffer(newBuffer);

@@ -293,12 +293,15 @@ namespace VirtualPhenix.Nintendo64
             var stringTableIdx = offs + 0x04;
             var strings = new StringTable();
 
-            // Leemos cada cadena en la tabla de cadenas
-            for (long i = 0; i < numValues; i++)
+            if (numValues != 0xFF)
             {
-                long strOffs = offs + view.GetUint32(stringTableIdx, context.LittleEndian);
-                strings.Add(ReadStringUTF8(buffer, strOffs));
-                stringTableIdx += 0x04;
+                // Leemos cada cadena en la tabla de cadenas
+                for (long i = 0; i < numValues; i++)
+                {
+                    long strOffs = offs + view.GetUint32(stringTableIdx, context.LittleEndian);
+                    strings.Add(ReadStringUTF8(buffer, strOffs));
+                    stringTableIdx += 0x04;
+                }
             }
 
             return strings;
@@ -320,6 +323,12 @@ namespace VirtualPhenix.Nintendo64
             for (long i = 0; i < numValues; i++)
             {
                 long entryStrKeyIdx = GetUint24(view, dictIdx + 0x00, context.LittleEndian);
+
+                if (entryStrKeyIdx >= context.StrKeyTable.Count)
+                {
+                    UnityEngine.Debug.LogError("Index above string table: " + entryStrKeyIdx + "/" + context.StrKeyTable.Count + "! Skipping...");
+                    continue;
+                }
 
                 // Obtener la clave del diccionario
                 string entryKey = context.StrKeyTable[(int)entryStrKeyIdx];
@@ -491,7 +500,7 @@ namespace VirtualPhenix.Nintendo64
                 case NodeType.Bool:
                     {
                         var value = view.GetUint32(offs, context.LittleEndian);
-                        Assert(value == 0 || value == 1);
+                        Assert(value == 0 || value == 1, "[ERROR] Boolean with wrong value: "+value);
 
                         return new SimpleNode(value);
                     }
@@ -554,14 +563,54 @@ namespace VirtualPhenix.Nintendo64
             return obj;
         }
 
-        public static object Parse(byte[] bufferBytes, FileType fileType = FileType.BYML, ParseOptions opt = null, bool _mapToObject = true)
+		public static T MapToObject<T>(Dictionary<string, object> data) where T : new()
+		{
+			T obj = new T();
+			Type type = typeof(T);
+
+			foreach (var kvp in data)
+			{
+				var field = type.GetField(kvp.Key, BindingFlags.Public | BindingFlags.Instance);
+				if (field != null && kvp.Value != null)
+				{
+					try
+					{
+						object value = Convert.ChangeType(kvp.Value, field.FieldType);
+						field.SetValue(obj, value);
+					}
+					catch (System.Exception e)
+                    {
+                       UnityEngine.Debug.LogError(e.StackTrace);    
+                    }
+				}
+
+				
+				var property = type.GetProperty(kvp.Key, BindingFlags.Public | BindingFlags.Instance);
+				if (property != null && property.CanWrite && kvp.Value != null)
+				{
+					try
+					{
+						object value = Convert.ChangeType(kvp.Value, property.PropertyType);
+						property.SetValue(obj, value);
+					}
+					catch (System.Exception e)
+					{
+					   UnityEngine.Debug.LogError(e.StackTrace);	
+					}
+				}
+			}
+
+			return obj;
+		}
+
+		public static object Parse(byte[] bufferBytes, FileType fileType = FileType.BYML, ParseOptions opt = null)
         {
-            return Parse<NodeDict>(new VP_ArrayBufferSlice(bufferBytes), fileType, opt);
+            return Parse<NodeDict>(new VP_ArrayBufferSlice(bufferBytes), fileType, opt, false);
         }
 
         public static object Parse<T>(byte[] bufferBytes, FileType fileType = FileType.BYML, ParseOptions opt = null, bool _mapToObject = true) where T: new()
         {
-            return Parse<T>(new VP_ArrayBufferSlice(bufferBytes), fileType, opt);
+            return Parse<T>(new VP_ArrayBufferSlice(bufferBytes), fileType, opt, _mapToObject);
         }
 
         public static object Parse<T>(VP_ArrayBufferSlice buffer, FileType fileType = FileType.BYML, ParseOptions opt = null, bool _mapToObject = true) where T : new()
@@ -569,7 +618,7 @@ namespace VirtualPhenix.Nintendo64
             string magic = ReadString(buffer, 0x00, 0x04, false);
             var magics = FileDescriptions[fileType].Magics;
 
-            Assert(magics.Contains(magic));
+            Assert(magics.Contains(magic), "[ERROR] MAGIC NOT FOUND: "+magic);
             var view = buffer.CreateDataView();
             bool littleEndian = magic.Substring(0, 2) == "YB";
             Endianness endianness = littleEndian ? Endianness.LittleEndian : Endianness.BigEndian;
@@ -597,7 +646,7 @@ namespace VirtualPhenix.Nintendo64
             var node = ParseComplexNode(context, buffer, rootNodeOffs, null);
             NodeDict dict = (NodeDict)node.Data;
 
-            object ret = null;
+			object ret = null;
 
             if (_mapToObject && (typeof(T) != typeof(NodeDict)))
             {
@@ -700,7 +749,7 @@ namespace VirtualPhenix.Nintendo64
             public VP_DataView<VP_ArrayBuffer> View;
             public long UserSize = 0;
             public long BufferSize = 0;
-            public long GrowAmount = 0;
+            public long GrowAmount = 0x1000;
 
             public GrowableBuffer()
             {
@@ -719,7 +768,7 @@ namespace VirtualPhenix.Nintendo64
 
             public void MaybeGrow(long newBufferSize, long? newUserSize = null)
             { 
-                if (newUserSize == null)
+                if (newUserSize == null || newUserSize < 0)
                     newUserSize = newBufferSize;
 
                 if (newUserSize > UserSize)
@@ -728,8 +777,8 @@ namespace VirtualPhenix.Nintendo64
                 if (newBufferSize > BufferSize)
                 {
                     BufferSize = Align(newBufferSize, GrowAmount);
-                    Buffer = Buffer.Transfer(BufferSize);
-                    View = new VP_DataView<VP_ArrayBuffer>(Buffer);
+					Buffer = Buffer.Transfer(BufferSize);
+                    View = new VP_DataView(Buffer);
                 }
             }
 
@@ -794,10 +843,11 @@ namespace VirtualPhenix.Nintendo64
 
             public void SetString(long offs, string v)
             {
-                Buffer.MaybeGrow(offs + v.Length);
-                var a = new VP_Uint8Array<VP_ArrayBuffer>(Buffer.Buffer, Offs);
-                for (long i = 0; i < v.Length; i++)
-                    a[i] = v.ElementAt((int)i);
+				Buffer.MaybeGrow(offs + v.Length);
+                var a = new VP_Uint8Array(Buffer.Buffer, Offs);
+       
+                for (int i = 0; i < v.Length; i++)
+                    a[i] = (byte)v.ElementAt(i);
             }
 
             public void WriteString(string v)
@@ -808,7 +858,7 @@ namespace VirtualPhenix.Nintendo64
 
             public void WriteFixedString(string v, long s)
             {
-                Assert(v.Length < s);
+                Assert(v.Length < s, "[ERROR] Fixed string has wrong length");
                 SetString(Offs, v);
                 Offs += s;
             }
@@ -843,7 +893,7 @@ namespace VirtualPhenix.Nintendo64
                 Buffer.View.SetUint32(offs, (uint)v, littleEndian);
             }
 
-            public void WriteUint32(byte v, bool littleEndian)
+            public void WriteUint32(long v, bool littleEndian)
             {
                 SetUint32(Offs, v, littleEndian);
                 Offs += 0x04;
@@ -864,13 +914,25 @@ namespace VirtualPhenix.Nintendo64
             public void SetFloat32(long offs, long v, bool littleEndian)
             {
                 Buffer.MaybeGrow(offs + 0x04);
-                Buffer.View.SetFloat32(offs, (int)v, littleEndian);
+                Buffer.View.SetFloat32(offs, (float)v, littleEndian);
             }
 
-            public void WriteFloat32(byte v, bool littleEndian)
+            public void WriteFloat32(long v, bool littleEndian)
             {
                 SetFloat32(Offs, v, littleEndian);
                 Offs += 0x04;
+            }
+
+            public void SetFloat64(long offs, long v, bool littleEndian)
+            {
+                Buffer.MaybeGrow(offs + 0x08);
+                Buffer.View.SetFloat64(offs, (double)v, littleEndian);
+            }
+
+            public void WriteFloat64(long v, bool littleEndian)
+            {
+                SetFloat64(Offs, v, littleEndian);
+                Offs += 0x08;
             }
 
             public void SeekTo(long n)
@@ -918,7 +980,7 @@ namespace VirtualPhenix.Nintendo64
         public static int StrTableIndex(StringTable table, string value)
         {
             var index = table.IndexOf(value);
-            Assert(index >= 0);
+            Assert(index >= 0, "[ERROR] Wrong string table index: "+ index);
 
             return index;
         }
@@ -933,7 +995,7 @@ namespace VirtualPhenix.Nintendo64
 
         public static NodeType ClassifyNodeValue(WriteContext w, Node v)
         {
-            if (v == null)
+            if (v == null || v.Data == null)
             {
                 return NodeType.Null;
             }
@@ -1087,7 +1149,10 @@ namespace VirtualPhenix.Nintendo64
             var stream = w.Stream;
             WriteHeader(w, NodeType.Float64, v.Buffer.Length);
             for (int i = 0; i < v.Buffer.Length; i++)
-                stream.WriteFloat32((byte)v[i], w.LittleEndian);
+            {
+                var parsed = (float)v[i];
+                stream.WriteFloat32((long)parsed, w.LittleEndian);
+            }
         }
 
         private static void WriteComplexValueBinary(WriteContext w, VP_ArrayBufferSlice v)
@@ -1097,8 +1162,8 @@ namespace VirtualPhenix.Nintendo64
             {
                 WriteHeader(w, NodeType.BinaryData, 0x00FFFFFF);
                 long numValues2 = v.ByteLength - 0x00FFFFFF;
-                Assert(numValues2 <= 0xFFFFFFFF);
-                stream.WriteUint32((byte)numValues2, w.LittleEndian);
+                Assert(numValues2 <= 0xFFFFFFFF, "[ERROR] Binary value above limit!");
+                stream.WriteUint32(numValues2, w.LittleEndian);
             }
             else
             {
@@ -1127,11 +1192,11 @@ namespace VirtualPhenix.Nintendo64
             else if (v.IsNumberFull())
             {
                 if (nodeType == NodeType.Float)
-                    stream.SetFloat32(valueOffs, (long)v.Data, w.LittleEndian);
+                    stream.SetFloat32(valueOffs, (long)(float)v.Data, w.LittleEndian);
                 else if (nodeType == NodeType.UInt)
-                    stream.SetUint32(valueOffs, (long)v.Data, w.LittleEndian);
+                    stream.SetUint32(valueOffs, (long)(uint)v.Data, w.LittleEndian);
                 else
-                    stream.SetInt32(valueOffs, (long)v.Data, w.LittleEndian);
+                    stream.SetInt32(valueOffs, (long)(int)v.Data, w.LittleEndian);
             }
             else if (w.CanUseNodeType(NodeType.FloatArray) && v.Data is VP_Float32Array<VP_ArrayBuffer>)
             {
@@ -1234,7 +1299,7 @@ namespace VirtualPhenix.Nintendo64
             }
             else
             {
-                throw new InvalidOperationException("whoops");
+                throw new InvalidOperationException("whoops! Wrong parse with type " + v.GetType());
             }
         }
 
@@ -1274,7 +1339,7 @@ namespace VirtualPhenix.Nintendo64
 
             for (int i = 0; i < v.Count; i++)
             {
-                stream.WriteUint32((byte)strDataIdx, w.LittleEndian);
+                stream.WriteUint32(strDataIdx, w.LittleEndian);
                 strDataIdx += v[i].Count() + 0x01;
             }
 
@@ -1290,22 +1355,27 @@ namespace VirtualPhenix.Nintendo64
             // Leer campos públicos
             foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
             {
-                result[field.Name] = field.GetValue(obj);
-            }
+                var value = field.GetValue(obj);
+
+				result[field.Name] = value;
+
+			}
 
             // Leer propiedades públicas con getter
             foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (prop.CanRead)
                 {
-                    result[prop.Name] = prop.GetValue(obj);
+                    var value = prop.GetValue(obj);
+           
+					result[prop.Name] = value;
                 }
             }
 
             return result;
         }
 
-        public static VP_ArrayBuffer Write(object o, FileType fileType = FileType.CRG1, string magic = null, bool _automaticParse = true)
+        public static VP_ArrayBuffer Write(object o, FileType fileType = FileType.CRG1, string magic = "", bool _automaticParse = false, bool _parseByteArrays = true)
         {
             object v = o;
 
@@ -1313,7 +1383,8 @@ namespace VirtualPhenix.Nintendo64
 
             if (_automaticParse && !isDict && !(o is NodeDict))
             {
-                o = ParseObjectToDictionary(o);
+                var dict = ParseObjectToDictionary(o);
+				o = dict;
                 isDict = true;
             }
 
@@ -1321,36 +1392,43 @@ namespace VirtualPhenix.Nintendo64
             {
                 Dictionary<string, object> parsed = (Dictionary<string, object>)o;
                 NodeDict dict = new NodeDict();
-
+     
                 foreach (var k in parsed.Keys)
                 {
-                    if (IsDataCorrectTypeForSimpleNode(parsed[k]))
+                    if (parsed[k] is byte[] && _parseByteArrays)
                     {
-                        dict.Add(k, new SimpleNode(parsed[k]));
+                        var parsedBuff = new VP_ArrayBufferSlice(new VP_ArrayBuffer(parsed[k] as byte[]));
+
+                        dict.Add(k, new ComplexNode(parsedBuff));
+                    }
+                    else if (IsDataCorrectTypeForSimpleNode(parsed[k]))
+                    {
+						dict.Add(k, new SimpleNode(parsed[k]));
                     }
                     else if (IsDataCorrectTypeForComplexNode(parsed[k]))
                     {
-                        dict.Add(k, new ComplexNode(parsed[k]));
+						dict.Add(k, new ComplexNode(parsed[k]));
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.LogError("Can't parse " + k + " because it's type " + parsed[k].GetType());
                     }
                 }
 
-                if (dict.Count > 0)
-                {
-                    v = dict;
-                }
-            }
+				v = dict;
+			}
             
 
             var stream = new WritableStream();
 
             var magics = FileDescriptions[fileType].Magics;
 
-            if (magic != null)
-                Assert(magics.Contains(magic));
+            if (!string.IsNullOrEmpty(magic))
+                Assert(magics.Contains(magic),"[ERROR] Magic table does not contains " + magic);
             else
                 magic = magics[magics.Count() - 1];
 
-            Assert(magic.Length == 0x04);
+            Assert(magic.Length == 0x04, "[ERROR] Magic length is 0x04");
 
             var littleEndian = magic.Substring(0, 2) == "YB";
             var endianness = littleEndian ? Endianness.LittleEndian : Endianness.BigEndian;
@@ -1384,6 +1462,43 @@ namespace VirtualPhenix.Nintendo64
             WriteComplexValueDict(w, v);
 
             return stream.Finalize();
+        }
+
+        public static byte[] GetSliceInByteArray(byte[] source, uint start, uint end)
+        {
+            if (start >= source.Length || end > source.Length || end <= start)
+            {
+                UnityEngine.Debug.LogWarning($"Invalid Range for GetSlice: start=0x{start:X}, end=0x{end:X}, length={source.Length}");
+                return Array.Empty<byte>();
+            }
+
+            int length = (int)(end - start);
+            byte[] slice = new byte[length];
+
+            try
+            {
+                Buffer.BlockCopy(source, (int)start, slice, 0, length);
+                return slice;
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogError($"Error al copiar bloque: start=0x{start:X}, end=0x{end:X}, ex: {ex.Message}");
+                return Array.Empty<byte>();
+            }
+        }
+
+        public static uint SwapEndian(uint value)
+        {
+            return (value & 0x000000FF) << 24 |
+                   (value & 0x0000FF00) << 8 |
+                   (value & 0x00FF0000) >> 8 |
+                   (value & 0xFF000000) >> 24;
+        }
+
+        public static uint MaskRomAddress(uint address)
+        {
+            // For 16MB ROMs, mask to 24-bit address space
+            return address & 0xFFFFFF;
         }
     }
 }
